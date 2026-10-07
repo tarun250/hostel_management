@@ -126,6 +126,17 @@ kubectl get pods,svc,ingress -n hostelhub
 - `values-prod.yaml`: HPA on, ServiceMonitor on, bigger volume
 - Add `<ingress-ip> hostelhub.local` to your hosts file to use the Ingress
 
+## Kubernetes (plain manifests)
+
+For a quick test cluster without Helm, `k8s/` has a Deployment + Service for each tier (backend and frontend run 2 replicas, the DB is a single pod on `emptyDir`):
+
+```bash
+kubectl apply -f k8s/namespace.yaml -f k8s/deployment.yaml -f k8s/service.yaml
+kubectl get pods,svc -n hostelhub
+```
+
+The frontend is exposed on NodePort `30080`. The images are `hostelhub-*:local`, so load them into the cluster first (`minikube image load` / `kind load docker-image`).
+
 ## Terraform (AWS)
 
 ```bash
@@ -181,7 +192,7 @@ Images: `ghcr.io/<owner>/hostelhub-backend:<sha>` and `ghcr.io/<owner>/hostelhub
 backend/     FastAPI app, Alembic migrations, pytest suite, Dockerfile
 frontend/    React + Vite app, nginx config template, Dockerfile
 helm/        hostelhub Helm chart
-k8s/         namespace
+k8s/         namespace, plain deployment + service manifests
 terraform/   AWS VPC + EKS
 monitoring/  kube-prometheus-stack values, Grafana dashboard
 .github/     CI/CD workflow
@@ -224,6 +235,11 @@ Mobile width:
 ### docker compose
 ![compose up](docs/screenshots/02-compose-up.png)
 ![compose ps](docs/screenshots/03-compose-ps.png)
+
+```bash
+docker compose logs --tail=8 backend
+```
+![compose logs](docs/screenshots/09-compose-logs.png)
 
 ### Backend endpoints
 `/health`, `/ready` (checks the DB), `/docs`:
