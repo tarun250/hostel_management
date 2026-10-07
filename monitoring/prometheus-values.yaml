@@ -1,0 +1,48 @@
+# kube-prometheus-stack values for HostelHub.
+# Install (release name "monitoring" matches the chart's ServiceMonitor label):
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f monitoring/prometheus-values.yaml \
+#     --set grafana.adminPassword="$GRAFANA_ADMIN_PASSWORD"
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors from any namespace / any release, not only this chart's.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    retention: 3d
+    resources:
+      requests: { cpu: 100m, memory: 400Mi }
+      limits: { memory: 1Gi }
+
+grafana:
+  enabled: true
+  # Placeholder - override with --set grafana.adminPassword=... (never commit the real one).
+  adminPassword: CHANGE_ME
+  defaultDashboardsTimezone: browser
+  service:
+    type: ClusterIP
+  sidecar:
+    dashboards:
+      enabled: true
+      # Any ConfigMap with this label gets loaded as a dashboard.
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+alertmanager:
+  enabled: false
+
+# Small clusters (kind / 2-node EKS): keep the footprint down.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
