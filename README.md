@@ -189,34 +189,83 @@ monitoring/  kube-prometheus-stack values, Grafana dashboard
 
 ## Screenshots
 
+All taken from real runs on my machine (Windows, Docker Desktop).
+
 ### Dashboard
+![Dashboard](docs/screenshots/10-ui-dashboard.png)
+
+Mobile width:
+
+![Mobile](docs/screenshots/17-ui-mobile.png)
 
 ### Rooms and allocation
+![Rooms](docs/screenshots/11-ui-rooms.png)
 
 ### Students
+![Students](docs/screenshots/12-ui-students.png)
 
 ### Maintenance
+![Maintenance](docs/screenshots/13-ui-maintenance.png)
 
 ### Complaints
+![Complaints](docs/screenshots/14-ui-complaints.png)
 
 ### Visitor log
+![Visitors](docs/screenshots/15-ui-visitors.png)
 
 ### Fees
+![Fees](docs/screenshots/16-ui-fees.png)
 
 ### pytest output
+22 tests on in-memory SQLite (never the real DB).
 
-### docker compose ps
+![pytest](docs/screenshots/01-pytest.png)
 
-### GitHub Actions pipeline
+### docker compose
+![compose up](docs/screenshots/02-compose-up.png)
+![compose ps](docs/screenshots/03-compose-ps.png)
+
+### Backend endpoints
+`/health`, `/ready` (checks the DB), `/docs`:
+
+![health](docs/screenshots/04-health-ready.png)
+
+`/metrics` (Prometheus format):
+
+![metrics](docs/screenshots/05-metrics.png)
+
+Swagger UI:
+
+![swagger](docs/screenshots/08-swagger-docs.png)
+
+### API calls
+POST → PUT → allocate room → DELETE → GET gives 404:
+
+![crud](docs/screenshots/06-api-crud.png)
+
+Room capacity is enforced:
+
+![409](docs/screenshots/07-room-full-409.png)
 
 ### Trivy scan
+Both images: 0 HIGH/CRITICAL fixable CVEs, exit code 0 (the CI gate uses the same flags).
 
-### GHCR packages
+![trivy backend](docs/screenshots/20-trivy-backend.png)
+![trivy frontend](docs/screenshots/21-trivy-frontend.png)
 
-### kubectl get pods / svc
+Both containers run as non-root:
 
-### Prometheus targets
+![non-root](docs/screenshots/22-nonroot.png)
 
-### Grafana dashboard
+### Helm lint
+![helm lint](docs/screenshots/23-helm-lint.png)
 
-### Terraform plan / AWS console
+### Terraform
+`fmt` + `init` + `validate` pass. No AWS credentials, so `plan`/`apply` were not run.
+
+![terraform](docs/screenshots/24-terraform-validate.png)
+
+### Still to capture
+- GitHub Actions pipeline run + GHCR packages (after the first push)
+- `kubectl get pods/svc`, `helm list`, Ingress in browser
+- Prometheus targets + Grafana dashboard (kube-prometheus-stack)
