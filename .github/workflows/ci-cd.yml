@@ -1,0 +1,204 @@
+name: HostelHub CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: Backend lint + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Run pytest (SQLite, never the real DB)
+        run: pytest -v
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+  build-scan-push:
+    name: Build, scan (Trivy), push to GHCR
+    needs: [test, frontend-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compute lowercase image names
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "BACKEND_IMAGE=${REGISTRY}/${OWNER}/hostelhub-backend:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=${REGISTRY}/${OWNER}/hostelhub-frontend:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Build backend image
+        run: docker build -t "$BACKEND_IMAGE" ./backend
+
+      - name: Build frontend image
+        run: docker build -t "$FRONTEND_IMAGE" ./frontend
+
+      # Pinned to the v0.36.0 commit (tags on this repo were hijacked in March 2026).
+      - name: Trivy scan - backend
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.BACKEND_IMAGE }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Trivy scan - frontend
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.FRONTEND_IMAGE }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push SHA-tagged images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push "$BACKEND_IMAGE"
+          docker push "$FRONTEND_IMAGE"
+
+      # Hand the exact scanned images to the kind deploy job (no registry pull needed).
+      - name: Save images for deploy job
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker save "$BACKEND_IMAGE" "$FRONTEND_IMAGE" | gzip > images.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: hostelhub-images
+          path: images.tar.gz
+          retention-days: 1
+
+  deploy-kind:
+    name: Deploy to kind with Helm + smoke test
+    needs: build-scan-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compute lowercase image names
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "BACKEND_REPO=${REGISTRY}/${OWNER}/hostelhub-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_REPO=${REGISTRY}/${OWNER}/hostelhub-frontend" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: hostelhub-images
+
+      - name: Load images into Docker
+        run: gunzip -c images.tar.gz | docker load
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: hostelhub
+
+      - name: Load images into kind
+        run: |
+          kind load docker-image "${BACKEND_REPO}:${GITHUB_SHA}" --name hostelhub
+          kind load docker-image "${FRONTEND_REPO}:${GITHUB_SHA}" --name hostelhub
+
+      - uses: azure/setup-helm@v5
+
+      - name: Create namespace
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Helm upgrade --install
+        run: |
+          helm upgrade --install hostelhub ./helm/hostelhub \
+            --namespace hostelhub \
+            -f helm/hostelhub/values-dev.yaml \
+            --set backend.image.repository="$BACKEND_REPO" \
+            --set backend.image.tag="$GITHUB_SHA" \
+            --set frontend.image.repository="$FRONTEND_REPO" \
+            --set frontend.image.tag="$GITHUB_SHA" \
+            --set postgres.password="ci-${{ github.run_id }}" \
+            --wait --timeout 6m
+
+      - name: Wait for rollouts
+        run: |
+          kubectl -n hostelhub rollout status statefulset/hostelhub-postgres --timeout=180s
+          kubectl -n hostelhub rollout status deployment/hostelhub-backend --timeout=180s
+          kubectl -n hostelhub rollout status deployment/hostelhub-frontend --timeout=180s
+          kubectl -n hostelhub get pods,svc,ingress -o wide
+
+      - name: Smoke test through port-forward
+        run: |
+          kubectl -n hostelhub port-forward svc/hostelhub-backend 8000:8000 >/tmp/pf-backend.log 2>&1 &
+          kubectl -n hostelhub port-forward svc/hostelhub-frontend 8080:80 >/tmp/pf-frontend.log 2>&1 &
+          for _ in $(seq 1 20); do curl -fs http://127.0.0.1:8000/health && break; sleep 2; done
+          echo
+          curl -fsS http://127.0.0.1:8000/health
+          curl -fsS http://127.0.0.1:8000/ready
+          curl -fsS http://127.0.0.1:8000/api/stats/summary
+          curl -fsS http://127.0.0.1:8000/metrics | grep -m1 http_requests_total
+          curl -fsS http://127.0.0.1:8080/ | grep -q "<title>HostelHub</title>"
+          curl -fsS http://127.0.0.1:8080/api/rooms
+          echo "Smoke test passed"
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          kubectl -n hostelhub get all
+          kubectl -n hostelhub describe pods | tail -n 120
+          kubectl -n hostelhub logs -l app.kubernetes.io/component=backend --tail=100 --all-containers || true
