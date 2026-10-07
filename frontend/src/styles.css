@@ -26,7 +26,7 @@ h1, h2, h3 { margin: 0; }
 .block { display: block; }
 
 /* ---------- shell ---------- */
-.shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
 .sidebar {
   background: var(--navy);
   color: #dbe4f0;
@@ -198,8 +198,10 @@ tr:hover td { background: #fcfaf6; }
   .occupancy-hero { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .shell { grid-template-columns: 1fr; }
-  .sidebar { position: sticky; top: 0; z-index: 5; height: auto; padding: 10px 12px; gap: 10px; }
+  .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .sidebar { position: sticky; top: 0; z-index: 5; height: auto; min-width: 0; padding: 10px 12px; gap: 10px; }
+  .form-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .search { max-width: none; }
   .brand small, .api-status { display: none; }
   .sidebar nav { flex-direction: row; overflow-x: auto; gap: 4px; }
   .sidebar nav a { white-space: nowrap; padding: 8px 10px; }
