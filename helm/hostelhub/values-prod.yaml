@@ -1,0 +1,35 @@
+# EKS. Pass the real DB password at deploy time, e.g.
+#   helm upgrade --install hostelhub helm/hostelhub -n hostelhub \
+#     -f helm/hostelhub/values-prod.yaml \
+#     --set backend.image.tag=$SHA --set frontend.image.tag=$SHA \
+#     --set postgres.password=$DB_PASSWORD
+backend:
+  image:
+    repository: ghcr.io/OWNER/hostelhub-backend
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+frontend:
+  image:
+    repository: ghcr.io/OWNER/hostelhub-frontend
+  replicas: 2
+
+postgres:
+  storage: 10Gi
+  storageClassName: gp2
+
+ingress:
+  enabled: true
+  host: hostelhub.example.com
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 65
+
+serviceMonitor:
+  enabled: true

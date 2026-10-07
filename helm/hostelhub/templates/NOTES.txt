@@ -1,0 +1,23 @@
+HostelHub {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Backend image:  {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+Frontend image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+
+Check pods:
+  kubectl get pods,svc -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress host: http://{{ .Values.ingress.host }}
+  (add "<ingress-ip> {{ .Values.ingress.host }}" to your hosts file for local clusters)
+{{- end }}
+
+Port-forward without ingress:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "hostelhub.frontendName" . }} 3000:80
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "hostelhub.backendName" . }} 8000:{{ .Values.backend.port }}
+  curl http://localhost:8000/health
+
+{{- if .Values.serviceMonitor.enabled }}
+
+ServiceMonitor created with labels {{ toJson .Values.serviceMonitor.labels }} - Prometheus scrapes /metrics every {{ .Values.serviceMonitor.interval }}.
+{{- end }}

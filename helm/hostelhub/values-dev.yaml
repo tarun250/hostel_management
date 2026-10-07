@@ -1,0 +1,25 @@
+# Local / kind / minikube. Images are loaded into the cluster, never pulled.
+backend:
+  image:
+    repository: hostelhub-backend
+    tag: local
+    pullPolicy: IfNotPresent
+frontend:
+  image:
+    repository: hostelhub-frontend
+    tag: local
+    pullPolicy: IfNotPresent
+
+postgres:
+  password: hostelhub-dev
+  storage: 512Mi
+
+ingress:
+  enabled: true
+  host: hostelhub.local
+
+hpa:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
