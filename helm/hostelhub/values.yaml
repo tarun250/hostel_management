@@ -55,6 +55,10 @@ postgres:
 
 externalDatabaseUrl: ""
 
+# Use a Secret created outside the chart (keys: DATABASE_URL, POSTGRES_USER, POSTGRES_PASSWORD)
+# instead of rendering one from values. Used by the Argo CD app so no password lives in git.
+existingSecret: ""
+
 ingress:
   enabled: true
   className: nginx

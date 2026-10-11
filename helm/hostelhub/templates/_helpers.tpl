@@ -31,7 +31,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- define "hostelhub.backendName" -}}{{ include "hostelhub.fullname" . }}-backend{{- end }}
 {{- define "hostelhub.frontendName" -}}{{ include "hostelhub.fullname" . }}-frontend{{- end }}
 {{- define "hostelhub.postgresName" -}}{{ include "hostelhub.fullname" . }}-postgres{{- end }}
-{{- define "hostelhub.secretName" -}}{{ include "hostelhub.fullname" . }}-db{{- end }}
+{{- define "hostelhub.secretName" -}}{{ .Values.existingSecret | default (printf "%s-db" (include "hostelhub.fullname" .)) }}{{- end }}
 
 {{- define "hostelhub.databaseUrl" -}}
 {{- if .Values.postgres.enabled -}}
