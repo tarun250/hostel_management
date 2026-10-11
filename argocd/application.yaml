@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hostelhub
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tarun250/hostel_management.git
+    targetRevision: main
+    path: helm/hostelhub
+    helm:
+      releaseName: hostelhub
+      valueFiles:
+        - values-gitops.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hostelhub-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

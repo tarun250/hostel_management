@@ -1,0 +1,27 @@
+# Values for the Argo CD app (argocd/application.yaml).
+# GitOps deploy = change the tags below to a new commit SHA that CI pushed to GHCR, then push.
+# Argo CD sees the commit and syncs the cluster to it.
+backend:
+  image:
+    repository: ghcr.io/tarun250/hostelhub-backend
+    tag: e81f6872ccd1669de8625c1cfb9f145e42396b1f
+frontend:
+  image:
+    repository: ghcr.io/tarun250/hostelhub-frontend
+    tag: e81f6872ccd1669de8625c1cfb9f145e42396b1f
+
+# DB credentials come from a Secret created by hand, never from git (see argocd/README.md).
+existingSecret: hostelhub-db
+
+postgres:
+  storage: 512Mi
+
+# The Helm release in the "hostelhub" namespace already owns hostelhub.local.
+ingress:
+  enabled: false
+
+hpa:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
