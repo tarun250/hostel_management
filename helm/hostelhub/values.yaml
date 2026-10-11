@@ -8,7 +8,7 @@ imagePullSecrets: []
 
 backend:
   image:
-    repository: ghcr.io/OWNER/hostelhub-backend
+    repository: ghcr.io/tarun250/hostelhub-backend
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 2
@@ -30,7 +30,7 @@ backend:
 
 frontend:
   image:
-    repository: ghcr.io/OWNER/hostelhub-frontend
+    repository: ghcr.io/tarun250/hostelhub-frontend
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 2
