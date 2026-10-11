@@ -2,7 +2,11 @@
 
 College hostel management system. Wardens register students, allot rooms, track maintenance and complaints, log visitors and keep fee status.
 
-DevOps capstone: FastAPI + React + PostgreSQL, Docker, GitHub Actions, Trivy, Helm on Kubernetes, Terraform (AWS EKS), Prometheus + Grafana.
+DevOps capstone: FastAPI + React + PostgreSQL, Docker, GitHub Actions, Trivy, Helm on Kubernetes, Argo CD, Terraform (AWS EKS), Prometheus + Grafana.
+
+- Latest green pipeline: [Actions run](https://github.com/tarun250/hostel_management/actions/runs/38163540967)
+- Images: [hostelhub-backend](https://github.com/users/tarun250/packages/container/package/hostelhub-backend), [hostelhub-frontend](https://github.com/users/tarun250/packages/container/package/hostelhub-frontend) on GHCR
+- Slides and demo video: [`demo/`](demo/)
 
 ## Features
 
@@ -30,6 +34,7 @@ DevOps capstone: FastAPI + React + PostgreSQL, Docker, GitHub Actions, Trivy, He
                   +---------------------------------------------------------------------------+
 
  git push -> GitHub Actions: test -> frontend build -> docker build -> Trivy -> GHCR -> kind deploy
+ Argo CD: watches helm/hostelhub on main -> syncs namespace hostelhub-gitops
  Terraform: VPC (2 public + 2 private subnets) + EKS managed node group
 ```
 
@@ -45,7 +50,8 @@ Locally, docker compose runs the same three containers. nginx in the frontend pr
 | Tests | pytest, httpx TestClient, in-memory SQLite, ruff |
 | Containers | Docker (non-root images), docker compose |
 | CI/CD | GitHub Actions, GHCR, Trivy, kind |
-| Kubernetes | Helm 3/4 chart, Ingress, HPA, StatefulSet |
+| Kubernetes | Helm 3/4 chart, Ingress, HPA, StatefulSet, minikube |
+| GitOps | Argo CD |
 | Cloud | Terraform, AWS VPC, EKS |
 | Monitoring | prometheus-fastapi-instrumentator, kube-prometheus-stack, Grafana |
 
@@ -114,9 +120,9 @@ Tests use in-memory SQLite through a `get_db` override. They never touch Postgre
 kubectl apply -f k8s/namespace.yaml
 helm lint helm/hostelhub
 helm upgrade --install hostelhub helm/hostelhub -n hostelhub \
-  --set backend.image.repository=ghcr.io/<owner>/hostelhub-backend \
+  --set backend.image.repository=ghcr.io/tarun250/hostelhub-backend \
   --set backend.image.tag=<git-sha> \
-  --set frontend.image.repository=ghcr.io/<owner>/hostelhub-frontend \
+  --set frontend.image.repository=ghcr.io/tarun250/hostelhub-frontend \
   --set frontend.image.tag=<git-sha> \
   --set postgres.password=<db-password>
 kubectl get pods,svc,ingress -n hostelhub
@@ -178,7 +184,11 @@ Dashboard panels: request rate, p50/p95/p99 latency, 5xx ratio, status classes, 
 | `build-scan-push` | Builds both images tagged with the commit SHA, Trivy scan (HIGH/CRITICAL, fail on fixable), pushes to GHCR on `main` |
 | `deploy-kind` | On `main`: creates a kind cluster, loads the scanned images, `helm upgrade --install`, waits for rollout, smoke-tests `/health`, `/ready` and the UI |
 
-Images: `ghcr.io/<owner>/hostelhub-backend:<sha>` and `ghcr.io/<owner>/hostelhub-frontend:<sha>`. Only `GITHUB_TOKEN` is used.
+Images: `ghcr.io/tarun250/hostelhub-backend:<sha>` and `ghcr.io/tarun250/hostelhub-frontend:<sha>`. Only `GITHUB_TOKEN` is used.
+
+## GitOps (Argo CD)
+
+`argocd/application.yaml` points Argo CD at `helm/hostelhub` on `main` with `values-gitops.yaml`, automated sync, `prune` and `selfHeal`. To deploy a new version, set the image tags in `values-gitops.yaml` to a SHA that CI pushed and push; Argo CD syncs the cluster to it. The DB password is in a Secret created by hand (`existingSecret`), so it is never in git. Setup steps: [`argocd/README.md`](argocd/README.md).
 
 ## Security
 
@@ -195,6 +205,8 @@ helm/        hostelhub Helm chart
 k8s/         namespace, plain deployment + service manifests
 terraform/   AWS VPC + EKS
 monitoring/  kube-prometheus-stack values, Grafana dashboard
+argocd/      Argo CD Application + setup
+demo/        presentation slides + demo video
 .github/     CI/CD workflow
 ```
 
@@ -317,7 +329,45 @@ VPC with **2 public** (+ 2 private) subnets, NAT + Internet Gateway, EKS cluster
 ### Git history
 ![git log](docs/screenshots/25-git-log.png)
 
-### Still to capture
-- GitHub Actions pipeline run + GHCR packages (after the first push)
-- `kubectl get pods/svc`, `helm list`, Ingress in browser
-- Prometheus targets + Grafana dashboard (kube-prometheus-stack)
+### CI/CD pipeline
+Green run on `main`: tests → frontend build → build + Trivy + GHCR push → kind deploy + smoke test ([run](https://github.com/tarun250/hostel_management/actions/runs/38163540967)):
+
+![actions run](docs/screenshots/50-github-actions-run.png)
+
+GHCR packages, tagged with the commit SHA:
+
+![ghcr backend](docs/screenshots/51-ghcr-backend.png)
+![ghcr frontend](docs/screenshots/52-ghcr-frontend.png)
+
+### Kubernetes (minikube)
+Deployed with `helm upgrade --install` using the GHCR images:
+
+![pods](docs/screenshots/40-kubectl-get-pods.png)
+![svc ingress](docs/screenshots/41-kubectl-get-svc-ingress.png)
+![helm list](docs/screenshots/42-helm-list.png)
+
+App through the Ingress at `http://hostelhub.local`:
+
+![ingress](docs/screenshots/43-ingress-browser.png)
+
+### Prometheus + Grafana
+ServiceMonitor target, both backend pods `UP`:
+
+![targets](docs/screenshots/45-prometheus-targets.png)
+
+Grafana dashboard with live traffic:
+
+![grafana](docs/screenshots/46-grafana-dashboard.png)
+
+### Argo CD
+App `Synced` + `Healthy`, synced to the latest commit on `main`:
+
+![argocd](docs/screenshots/47-argocd-app-synced.png)
+
+## Known issues and limitations
+
+- **No AWS account.** Terraform `plan`/`apply`/`destroy` ran against the Moto mock, so there is no AWS Console screenshot and the app was never on a real EKS cluster. The Kubernetes demo runs on minikube.
+- The Helm release (namespace `hostelhub`) and the Argo CD app (namespace `hostelhub-gitops`) are two copies of the same chart on one minikube. Together with Prometheus and Argo CD they need more than 4 GB of memory, otherwise pods restart on failed probes.
+- GitOps tag bumps in `values-gitops.yaml` are manual. CI does not write back to the repo.
+- Postgres runs in the cluster as a single-replica StatefulSet. On real AWS it should be RDS (`postgres.enabled=false` + `externalDatabaseUrl`).
+- There is no login. The console is meant for one warden on a trusted network.
