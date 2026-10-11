@@ -334,6 +334,12 @@ Green run on `main`: tests → frontend build → build + Trivy + GHCR push → 
 
 ![actions run](docs/screenshots/50-github-actions-run.png)
 
+Trivy step in that run: backend (Debian OS + every Python package) and frontend (Alpine) both report **0** vulnerabilities:
+
+![trivy ci backend](docs/screenshots/27-trivy-ci-backend.png)
+![trivy ci backend end](docs/screenshots/28-trivy-ci-backend-end.png)
+![trivy ci frontend](docs/screenshots/29-trivy-ci-frontend.png)
+
 GHCR packages, tagged with the commit SHA:
 
 ![ghcr backend](docs/screenshots/51-ghcr-backend.png)
