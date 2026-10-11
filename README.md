@@ -264,10 +264,18 @@ Room capacity is enforced:
 ![409](docs/screenshots/07-room-full-409.png)
 
 ### Trivy scan
-Both images: 0 HIGH/CRITICAL fixable CVEs, exit code 0 (the CI gate uses the same flags).
+Trivy scans each image's OS packages (Debian for the backend, Alpine for the frontend) and every installed language package (Python wheels, npm) against known CVEs. The gate fails the build on any **HIGH or CRITICAL** CVE that **has a fix available** (`--ignore-unfixed`), because unfixable ones can't be acted on.
+
+Final result: both images have **0 HIGH/CRITICAL fixable CVEs**, exit code 0 (the CI gate uses the same flags).
 
 ![trivy backend](docs/screenshots/20-trivy-backend.png)
 ![trivy frontend](docs/screenshots/21-trivy-frontend.png)
+
+**A CVE it found:** the first backend scan failed. The findings came from the `python:3.13-slim` base image, not my code:
+
+![base image cves](docs/screenshots/26-trivy-base-image-cves.png)
+
+Example — **CVE-2026-97689** (urllib3 2.7.0, HIGH, fixed in 2.8.0): denial of service through unbounded memory allocation in urllib3's chunk parser. This urllib3 isn't one of my dependencies: it's the copy **bundled inside pip** (`site-packages/pip/_vendor/urllib3`), as is the flagged msgpack. pip is only needed at build time, so `backend/Dockerfile` runs `pip uninstall -y pip` after installing requirements. That removes the vulnerable copies from the runtime image, and the rescan of `hostelhub-backend` came back clean (above).
 
 Both containers run as non-root:
 
@@ -277,9 +285,37 @@ Both containers run as non-root:
 ![helm lint](docs/screenshots/23-helm-lint.png)
 
 ### Terraform
-`fmt` + `init` + `validate` pass. No AWS credentials, so `plan`/`apply` were not run.
+`fmt` + `init` + `validate` pass:
 
 ![terraform](docs/screenshots/24-terraform-validate.png)
+
+**plan → apply → destroy** — I don't have an AWS account, so this ran against **[Moto](https://github.com/getmoto/moto)**, an open-source AWS mock server in Docker. Terraform, the `vpc` + `eks` modules and every command are real; only the endpoint is local. No AWS Console screenshot is possible without an account.
+
+A local, git-ignored `provider_override.tf` points the provider at Moto (dummy `test` credentials) and, because Moto doesn't implement them, turns off three things **for the mock only**: the SSM lookup of the latest EKS AMI, the EKS add-ons, and the cluster-creator access entry. That's why the mock plan is 50 resources instead of 56. `main.tf` is unchanged and applies all of them on real AWS.
+
+`terraform plan` — non-empty, no errors:
+
+![plan](docs/screenshots/30-terraform-plan.png)
+
+`terraform apply` (creation lines + outputs):
+
+![apply](docs/screenshots/31-terraform-apply.png)
+
+`terraform output`:
+
+![output](docs/screenshots/32-terraform-output.png)
+
+VPC with **2 public** (+ 2 private) subnets, NAT + Internet Gateway, EKS cluster `ACTIVE`, managed node group `ACTIVE` (min 1 / desired 2 / max 3):
+
+![vpc eks](docs/screenshots/33-vpc-eks-state.png)
+
+`terraform destroy` — 50 destroyed, state empty afterwards:
+
+![destroy](docs/screenshots/34-terraform-destroy.png)
+![after destroy](docs/screenshots/35-after-destroy.png)
+
+### Git history
+![git log](docs/screenshots/25-git-log.png)
 
 ### Still to capture
 - GitHub Actions pipeline run + GHCR packages (after the first push)
