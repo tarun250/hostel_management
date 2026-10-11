@@ -37,7 +37,8 @@ spec:
       initContainers:
         - name: wait-for-postgres
           image: {{ .Values.postgres.image }}
-          command: ["sh", "-c", "until pg_isready -h {{ include "hostelhub.postgresName" . }} -p 5432; do echo waiting for postgres; sleep 2; done"]
+          # uid 10001 has no passwd entry, so pg_isready needs an explicit -U/-d.
+          command: ["sh", "-c", "until pg_isready -h {{ include "hostelhub.postgresName" . }} -p 5432 -U {{ .Values.postgres.username }} -d {{ .Values.postgres.database }}; do echo waiting for postgres; sleep 2; done"]
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
