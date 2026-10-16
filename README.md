@@ -6,7 +6,8 @@ DevOps capstone: FastAPI + React + PostgreSQL, Docker, GitHub Actions, Trivy, He
 
 - Latest green pipeline: [Actions run](https://github.com/tarun250/hostel_management/actions/runs/38163540967)
 - Images: [hostelhub-backend](https://github.com/users/tarun250/packages/container/package/hostelhub-backend), [hostelhub-frontend](https://github.com/users/tarun250/packages/container/package/hostelhub-frontend) on GHCR
-- Slides and demo video: [`demo/`](demo/)
+- Slides: [`HostelHub-Presentation.pptx`](HostelHub-Presentation.pptx)
+- Live demo script (commit → pipeline → Argo CD rollout): [`docs/demo.md`](docs/demo.md)
 
 ## Features
 
@@ -83,6 +84,34 @@ Base path `/api`. Interactive docs at `/docs`.
 | PUT | `/api/fees/{id}` | Update fee |
 | PUT | `/api/fees/{id}/pay` | Mark paid, optional `{"payment_ref": "UPI-123"}` |
 | GET | `/api/stats/summary` | Dashboard numbers |
+
+## Run locally (without Docker)
+
+Needs Python 3.13, Node 22 and a PostgreSQL server on `localhost:5432`.
+
+```bash
+# 1. Database (once)
+psql -d postgres -c "CREATE ROLE hostelhub WITH LOGIN PASSWORD 'hostelhub';"
+psql -d postgres -c "CREATE DATABASE hostelhub OWNER hostelhub;"
+
+# 2. Backend (terminal 1)
+cd backend
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+export DATABASE_URL=postgresql+psycopg://hostelhub:hostelhub@localhost:5432/hostelhub
+alembic upgrade head
+uvicorn app.main:app --reload
+
+# 3. Frontend (terminal 2)
+cd frontend
+npm install
+npm run dev
+```
+
+- UI: http://localhost:5173 (Vite forwards `/api` to the backend on :8000)
+- API docs: http://localhost:8000/docs
+
+If you skip `export DATABASE_URL`, the backend falls back to the same `hostelhub:hostelhub@localhost` URL. The Compose `db` container also publishes port 5432, so stop the local Postgres while Compose runs to be sure which one `psql` reaches.
 
 ## Run locally (Docker Compose)
 
@@ -206,7 +235,8 @@ k8s/         namespace, plain deployment + service manifests
 terraform/   AWS VPC + EKS
 monitoring/  kube-prometheus-stack values, Grafana dashboard
 argocd/      Argo CD Application + setup
-demo/        presentation slides + demo video
+docs/        live demo script, screenshots
+HostelHub-Presentation.pptx   final presentation
 .github/     CI/CD workflow
 ```
 
