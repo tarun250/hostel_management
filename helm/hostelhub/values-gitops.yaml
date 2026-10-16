@@ -4,11 +4,11 @@
 backend:
   image:
     repository: ghcr.io/tarun250/hostelhub-backend
-    tag: e81f6872ccd1669de8625c1cfb9f145e42396b1f
+    tag: d603539974cc484c3c7ac530a3fe969689729f2a
 frontend:
   image:
     repository: ghcr.io/tarun250/hostelhub-frontend
-    tag: e81f6872ccd1669de8625c1cfb9f145e42396b1f
+    tag: d603539974cc484c3c7ac530a3fe969689729f2a
 
 # DB credentials come from a Secret created by hand, never from git (see argocd/README.md).
 existingSecret: hostelhub-db
