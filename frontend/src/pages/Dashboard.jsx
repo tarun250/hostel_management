@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Hostel overview" subtitle="Live snapshot of occupancy, dues and open issues.">
+      <PageHeader title="Hostel dashboard" subtitle="Live snapshot of occupancy, dues and open issues.">
         <button className="btn btn-ghost" onClick={reload} disabled={loading}>
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
