@@ -8,6 +8,7 @@ DevOps capstone: FastAPI + React + PostgreSQL, Docker, GitHub Actions, Trivy, He
 - Images: [hostelhub-backend](https://github.com/users/tarun250/packages/container/package/hostelhub-backend), [hostelhub-frontend](https://github.com/users/tarun250/packages/container/package/hostelhub-frontend) on GHCR
 - Slides: [`HostelHub-Presentation.pptx`](HostelHub-Presentation.pptx)
 - Live demo script (commit → pipeline → Argo CD rollout): [`docs/demo.md`](docs/demo.md)
+- Walkthrough video (1:40): [`demo/hostelhub-walkthrough.mp4`](demo/hostelhub-walkthrough.mp4)
 
 ## Features
 
@@ -237,6 +238,7 @@ monitoring/  kube-prometheus-stack values, Grafana dashboard
 argocd/      Argo CD Application + setup
 docs/        live demo script, screenshots
 HostelHub-Presentation.pptx   final presentation
+demo/        walkthrough video
 .github/     CI/CD workflow
 ```
 
@@ -399,6 +401,9 @@ Grafana dashboard with live traffic:
 App `Synced` + `Healthy`, synced to the latest commit on `main`:
 
 ![argocd](docs/screenshots/47-argocd-app-synced.png)
+
+### Walkthrough video
+[`demo/hostelhub-walkthrough.mp4`](demo/hostelhub-walkthrough.mp4) (1 min 40 s, captions, no narration) is a screen recording of the running system: the app and Swagger on minikube, the GitHub repo, a green Actions run, the GHCR package, live `kubectl`/`argocd`/`helm` output, Argo CD synced, Prometheus targets UP and the Grafana dashboard with live traffic. It was recorded in two takes because the 3 GB minikube can't run Argo CD and the monitoring stack at the same time.
 
 ### Live demo: commit → pipeline → Argo CD rollout
 Rehearsal of the M10 demo ([steps](docs/demo.md)). The Dashboard heading changed in `d603539`, CI went green and pushed the images, `values-gitops.yaml` was bumped to that SHA in `4426111`, and Argo CD rolled the new pods out.
