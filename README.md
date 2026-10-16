@@ -400,6 +400,22 @@ App `Synced` + `Healthy`, synced to the latest commit on `main`:
 
 ![argocd](docs/screenshots/47-argocd-app-synced.png)
 
+### Live demo: commit → pipeline → Argo CD rollout
+Rehearsal of the M10 demo ([steps](docs/demo.md)). The Dashboard heading changed in `d603539`, CI went green and pushed the images, `values-gitops.yaml` was bumped to that SHA in `4426111`, and Argo CD rolled the new pods out.
+
+Green run for the change ([run](https://github.com/tarun250/hostel_management/actions/runs/39024547490)):
+
+![demo green run](docs/screenshots/61-demo-green-run.png)
+
+Argo CD synced to the new revision `4426111`:
+
+![demo argocd](docs/screenshots/62-demo-argocd-synced.png)
+
+App before and after (heading "Hostel overview" → "Hostel dashboard"):
+
+![demo before](docs/screenshots/60-demo-before.png)
+![demo after](docs/screenshots/63-demo-after.png)
+
 ## Known issues and limitations
 
 - **No AWS account.** Terraform `plan`/`apply`/`destroy` ran against the Moto mock, so there is no AWS Console screenshot and the app was never on a real EKS cluster. The Kubernetes demo runs on minikube.
